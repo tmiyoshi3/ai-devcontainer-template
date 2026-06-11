@@ -1,6 +1,7 @@
 # DevContainer (Podman-in-Podman)
 
-ローカルPCのファイルシステムから隔離された開発環境。ホストのPodmanソケットをマウントしないため、DevContainer内からホストのファイルにアクセスする手段がない。
+ローカルPCのファイルシステムから隔離された開発環境。ホストのPodmanソケットをマウントしないため、DevContainer内からホストのファイルにアクセスする手段がない(わけじゃないだろうけどできる限り最小化)。  
+起動したDevContainer内でpodman-in-podmanを利用でき、claude code(GCP Vertex経由)、playwright MCPの準備が整っている(つもり)。  
 
 ## 前提条件
 
