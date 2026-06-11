@@ -1,0 +1,32 @@
+{
+  "name": "Podman-in-Podman Dev",
+  "build": { "dockerfile": "Containerfile" },
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "remoteUser": "podman",
+  "containerUser": "podman",
+  "overrideCommand": false,
+  "runArgs": [
+    "--device=/dev/fuse",
+    "--device=/dev/net/tun",
+    "--security-opt=label=disable",
+    "--cap-add=NET_ADMIN",
+    "--cap-add=SYS_ADMIN"
+  ],
+  "mounts": [
+    "source=${localEnv:HOME}/.config/gcloud,target=/home/podman/.config/gcloud-host,type=bind,readonly"
+  ],
+  "containerEnv": {
+    "CLAUDE_CODE_USE_VERTEX": "1",
+    "CLOUD_ML_REGION": "global",
+    "ANTHROPIC_VERTEX_PROJECT_ID": "${localEnv:ANTHROPIC_VERTEX_PROJECT_ID}",
+    "GCLOUD_QUOTA_PROJECT": "${localEnv:GCLOUD_QUOTA_PROJECT}"
+  },
+  "postCreateCommand": "bash .devcontainer/setup-claude.sh",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "bash"
+      }
+    }
+  }
+}

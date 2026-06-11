@@ -1,0 +1,61 @@
+FROM quay.io/podman/stable
+
+USER root
+
+# System packages: base tools + Java + compose/kustomize + Playwright Chromium deps
+RUN dnf install -y \
+    git curl slirp4netns podman-compose jq \
+    # openssl \
+    # kustomize \
+    # java-25-openjdk-devel \
+    nspr nss nss-util atk at-spi2-atk \
+    cups-libs libdrm mesa-libgbm libxkbcommon \
+    alsa-lib pango libXcomposite libXdamage \
+    libXrandr libXtst libXScrnSaver gtk3 \
+    && dnf clean all
+
+# ENV JAVA_HOME=/usr/lib/jvm/java-25-openjdk
+
+# Node.js 24 (binary install, auto-detect arch)
+RUN ARCH=$(uname -m | sed 's/x86_64/x64/;s/aarch64/arm64/') && \
+    curl -fsSL "https://nodejs.org/dist/v24.14.1/node-v24.14.1-linux-${ARCH}.tar.xz" | \
+    tar -xJ -C /usr/local --strip-components=1
+
+RUN sed -i '/^default_sysctls = \[\]/a netns = "slirp4netns"' \
+      /home/podman/.config/containers/containers.conf
+
+# Allow podman user to remount /proc/sys as rw (needed for netavark bridge networking)
+RUN echo 'podman ALL=(ALL) NOPASSWD: /usr/bin/mount -o remount\,rw /proc/sys' \
+      > /etc/sudoers.d/proc-sys-remount \
+    && chmod 0440 /etc/sudoers.d/proc-sys-remount
+
+# Install @playwright/mcp globally (requires root for /usr/local/lib/node_modules)
+RUN npm install -g @playwright/mcp@latest
+
+# Google Cloud CLI (auto-detect arch: x86_64 passthrough, aarch64 -> arm)
+RUN GCLOUD_ARCH=$(uname -m | sed 's/aarch64/arm/') && \
+    curl -fsSL "https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-${GCLOUD_ARCH}.tar.gz" \
+      | tar -xz -C /opt \
+    && /opt/google-cloud-sdk/install.sh --quiet --path-update=false \
+    && ln -s /opt/google-cloud-sdk/bin/gcloud /usr/local/bin/gcloud \
+    && ln -s /opt/google-cloud-sdk/bin/gsutil /usr/local/bin/gsutil
+
+# Healthcheck poller + entrypoint (Podman 5.x healthcheck timers need
+# systemd, which is absent in DevContainer — poller is the workaround)
+COPY healthcheck-poller.sh /usr/local/bin/healthcheck-poller.sh
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/healthcheck-poller.sh /usr/local/bin/entrypoint.sh
+
+USER podman
+
+# Install Chromium using the playwright bundled with @playwright/mcp
+RUN npx @playwright/mcp@latest install-browser chromium
+
+# Claude Code CLI (installs to ~/.local/bin/claude)
+RUN curl -fsSL https://claude.ai/install.sh | sh \
+    && /home/podman/.local/bin/claude mcp add --scope user playwright npx @playwright/mcp@latest -- --browser chromium
+ENV PATH="/home/podman/.local/bin:${PATH}"
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["sleep", "infinity"]
+WORKDIR /workspaces
