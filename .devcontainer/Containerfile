@@ -46,6 +46,9 @@ COPY healthcheck-poller.sh /usr/local/bin/healthcheck-poller.sh
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/healthcheck-poller.sh /usr/local/bin/entrypoint.sh
 
+# Japanese fonts (for Playwright screenshots etc.)
+RUN dnf install -y google-noto-sans-cjk-jp-fonts && dnf clean all
+
 USER podman
 
 # Install Chromium using the playwright bundled with @playwright/mcp
